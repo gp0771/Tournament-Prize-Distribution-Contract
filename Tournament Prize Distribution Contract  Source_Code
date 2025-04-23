@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+contract TournamentPrizeDistribution {
+    address public owner;
+    uint public totalPrize;
+    mapping(address => uint) public winnerPrizes;
+    bool public prizesDistributed;
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Not authorized");
+        _;
+    }
+
+    constructor() payable {
+        owner = msg.sender;
+        totalPrize = msg.value;
+        prizesDistributed = false;
+    }
+
+    function distributePrizes(address[] calldata winners, uint[] calldata prizes) external onlyOwner {
+        require(!prizesDistributed, "Prizes already distributed");
+        require(winners.length == prizes.length, "Mismatch in winners and prizes");
+
+        uint totalDistributed = 0;
+
+        for (uint i = 0; i < winners.length; i++) {
+            winnerPrizes[winners[i]] = prizes[i];
+            totalDistributed += prizes[i];
+        }
+
+        require(totalDistributed <= totalPrize, "Exceeds total prize pool");
+
+        for (uint i = 0; i < winners.length; i++) {
+            payable(winners[i]).transfer(prizes[i]);
+        }
+
+        prizesDistributed = true;
+    }
+
+    function getPrizeAmount(address winner) external view returns (uint) {
+        return winnerPrizes[winner];
+    }
+}
