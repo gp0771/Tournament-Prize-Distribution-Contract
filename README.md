@@ -21,7 +21,7 @@ To create a decentralized, trustless, and efficient mechanism for prize disburse
 - Integration with off-chain tournament platforms using oracles.
 - Support for ERC20 tokens instead of just native cryptocurrency.
 
-Contract Address:0x36e9e219113a8c401fcbd33ef7e24865eb1e6ad1
+Contract Address - 0x36e9e219113a8c401fcbd33ef7e24865eb1e6ad1
 
 ![image](https://github.com/user-attachments/assets/aabac3fa-986a-4602-95c7-a9ffc0b2577a)
 
