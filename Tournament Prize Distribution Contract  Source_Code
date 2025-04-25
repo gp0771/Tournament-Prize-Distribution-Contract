@@ -84,4 +84,46 @@ contract TournamentPrizeDistribution {
 
         emit DistributionReset();
     }
+
+    // ========================= New Functions Added =========================
+
+    // View contract balance
+    function getContractBalance() external view returns (uint) {
+        return address(this).balance;
+    }
+
+    // Check if a specific winner has received a prize
+    function hasWinnerClaimed(address winner) external view returns (bool) {
+        return winnerPrizes[winner] > 0;
+    }
+
+    // Remove a winner before distribution
+    function removeWinner(address winner) external onlyOwner {
+        require(!prizesDistributed, "Cannot remove after distribution");
+        require(winnerPrizes[winner] > 0, "Winner not found");
+
+        totalPrize -= winnerPrizes[winner];
+        delete winnerPrizes[winner];
+
+        for (uint i = 0; i < winnerList.length; i++) {
+            if (winnerList[i] == winner) {
+                winnerList[i] = winnerList[winnerList.length - 1];
+                winnerList.pop();
+                break;
+            }
+        }
+    }
+
+    // Update a specific winner’s prize before distribution
+    function updateWinnerPrize(address winner, uint newPrize) external onlyOwner {
+        require(!prizesDistributed, "Cannot update after distribution");
+        require(winnerPrizes[winner] > 0, "Winner not found");
+
+        uint currentPrize = winnerPrizes[winner];
+        if (newPrize > currentPrize) {
+            require(totalPrize >= totalDistributed + (newPrize - currentPrize), "Exceeds prize pool");
+        }
+
+        winnerPrizes[winner] = newPrize;
+    }
 }
