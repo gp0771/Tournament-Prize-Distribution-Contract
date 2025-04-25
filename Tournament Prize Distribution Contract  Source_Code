@@ -4,13 +4,20 @@ pragma solidity ^0.8.24;
 contract TournamentPrizeDistribution {
     address public owner;
     uint public totalPrize;
+    uint public totalDistributed;
     mapping(address => uint) public winnerPrizes;
+    address[] public winnerList;
     bool public prizesDistributed;
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Not authorized");
         _;
     }
+
+    event PrizeDistributed(address indexed winner, uint amount);
+    event PrizePoolUpdated(uint newTotalPrize);
+    event RemainingFundsWithdrawn(uint amount);
+    event DistributionReset();
 
     constructor() payable {
         owner = msg.sender;
@@ -22,23 +29,59 @@ contract TournamentPrizeDistribution {
         require(!prizesDistributed, "Prizes already distributed");
         require(winners.length == prizes.length, "Mismatch in winners and prizes");
 
-        uint totalDistributed = 0;
+        uint _totalDistributed = 0;
 
         for (uint i = 0; i < winners.length; i++) {
             winnerPrizes[winners[i]] = prizes[i];
-            totalDistributed += prizes[i];
+            winnerList.push(winners[i]);
+            _totalDistributed += prizes[i];
         }
 
-        require(totalDistributed <= totalPrize, "Exceeds total prize pool");
+        require(_totalDistributed <= totalPrize, "Exceeds total prize pool");
 
         for (uint i = 0; i < winners.length; i++) {
             payable(winners[i]).transfer(prizes[i]);
+            emit PrizeDistributed(winners[i], prizes[i]);
         }
 
+        totalDistributed = _totalDistributed;
         prizesDistributed = true;
     }
 
     function getPrizeAmount(address winner) external view returns (uint) {
         return winnerPrizes[winner];
+    }
+
+    function getAllWinners() external view returns (address[] memory) {
+        return winnerList;
+    }
+
+    function updatePrizeAmount() external payable onlyOwner {
+        require(!prizesDistributed, "Cannot add funds after distribution");
+        totalPrize += msg.value;
+        emit PrizePoolUpdated(totalPrize);
+    }
+
+    function withdrawUnclaimedFunds() external onlyOwner {
+        require(prizesDistributed, "Distribution not completed");
+        uint remaining = address(this).balance;
+        payable(owner).transfer(remaining);
+        emit RemainingFundsWithdrawn(remaining);
+    }
+
+    function resetDistribution() external onlyOwner {
+        require(prizesDistributed, "Prizes not yet distributed");
+
+        // Clear winnerPrizes and winnerList
+        for (uint i = 0; i < winnerList.length; i++) {
+            delete winnerPrizes[winnerList[i]];
+        }
+        delete winnerList;
+
+        prizesDistributed = false;
+        totalDistributed = 0;
+        totalPrize = address(this).balance;
+
+        emit DistributionReset();
     }
 }
