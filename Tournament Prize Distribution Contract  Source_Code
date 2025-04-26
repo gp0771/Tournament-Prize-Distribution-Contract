@@ -18,6 +18,8 @@ contract TournamentPrizeDistribution {
     event PrizePoolUpdated(uint newTotalPrize);
     event RemainingFundsWithdrawn(uint amount);
     event DistributionReset();
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    event ContractDestroyed(address indexed destroyer, uint balanceTransferred);
 
     constructor() payable {
         owner = msg.sender;
@@ -72,7 +74,6 @@ contract TournamentPrizeDistribution {
     function resetDistribution() external onlyOwner {
         require(prizesDistributed, "Prizes not yet distributed");
 
-        // Clear winnerPrizes and winnerList
         for (uint i = 0; i < winnerList.length; i++) {
             delete winnerPrizes[winnerList[i]];
         }
@@ -85,19 +86,16 @@ contract TournamentPrizeDistribution {
         emit DistributionReset();
     }
 
-    // ========================= New Functions Added =========================
+    // ========================= New Functions Already Added =========================
 
-    // View contract balance
     function getContractBalance() external view returns (uint) {
         return address(this).balance;
     }
 
-    // Check if a specific winner has received a prize
     function hasWinnerClaimed(address winner) external view returns (bool) {
         return winnerPrizes[winner] > 0;
     }
 
-    // Remove a winner before distribution
     function removeWinner(address winner) external onlyOwner {
         require(!prizesDistributed, "Cannot remove after distribution");
         require(winnerPrizes[winner] > 0, "Winner not found");
@@ -114,7 +112,6 @@ contract TournamentPrizeDistribution {
         }
     }
 
-    // Update a specific winner’s prize before distribution
     function updateWinnerPrize(address winner, uint newPrize) external onlyOwner {
         require(!prizesDistributed, "Cannot update after distribution");
         require(winnerPrizes[winner] > 0, "Winner not found");
@@ -125,5 +122,42 @@ contract TournamentPrizeDistribution {
         }
 
         winnerPrizes[winner] = newPrize;
+    }
+
+    // ========================= New Functions Added Now =========================
+
+    // Force distribute remaining balance proportionally to winners
+    function distributeRemainingBalance() external onlyOwner {
+        require(prizesDistributed, "Prizes not yet distributed");
+        uint remaining = address(this).balance;
+        require(remaining > 0, "No remaining balance");
+
+        uint perWinner = remaining / winnerList.length;
+        for (uint i = 0; i < winnerList.length; i++) {
+            payable(winnerList[i]).transfer(perWinner);
+            emit PrizeDistributed(winnerList[i], perWinner);
+        }
+    }
+
+    // Force payout specific winner again
+    function forcePayout(address winner) external onlyOwner {
+        require(prizesDistributed, "Prizes not yet distributed");
+        uint prize = winnerPrizes[winner];
+        require(prize > 0, "Winner has no prize");
+        payable(winner).transfer(prize);
+        emit PrizeDistributed(winner, prize);
+    }
+
+    // Transfer ownership
+    function transferOwnership(address newOwner) external onlyOwner {
+        require(newOwner != address(0), "Invalid address");
+        emit OwnershipTransferred(owner, newOwner);
+        owner = newOwner;
+    }
+
+    // Destroy the contract and send balance to owner
+    function destroyContract() external onlyOwner {
+        emit ContractDestroyed(msg.sender, address(this).balance);
+        selfdestruct(payable(owner));
     }
 }
